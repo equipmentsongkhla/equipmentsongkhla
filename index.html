@@ -187,16 +187,16 @@ body{font-family:'Kanit','Sarabun',sans-serif;background:#fafafa;color:var(--ig-
   <div class="warehouse-subtitle">ระบบจัดการวัสดุอุปกรณ์สำนักงาน</div>
   <div style="width:100%;max-width:340px">
     <div class="form-group" style="margin-bottom:12px">
-      <input type="text" class="form-control" id="login-user" placeholder="ชื่อผู้ใช้" autocomplete="username" style="font-size:15px">
+      <input type="text" class="form-control" id="login-user" placeholder="ชื่อผู้ใช้" autocomplete="username" style="font-size:15px" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
     </div>
     <div class="form-group" style="margin-bottom:16px;position:relative">
-      <input type="password" class="form-control" id="login-pass" placeholder="รหัสผ่าน" autocomplete="current-password" style="font-size:15px" onkeydown="if(event.key==='Enter')doLogin()">
-      <button onclick="togglePass()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ig-muted)">
+      <input type="password" class="form-control" id="login-pass" placeholder="รหัสผ่าน" autocomplete="current-password" style="font-size:15px;padding-right:44px" onkeydown="if(event.key==='Enter')doLogin()">
+      <button type="button" onclick="togglePass()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ig-muted);z-index:2">
         <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
     </div>
     <div id="login-error" style="color:#dc2626;font-size:13px;text-align:center;margin-bottom:10px;display:none"></div>
-    <button class="btn btn-gradient btn-block" onclick="doLogin()" style="font-size:15px;padding:14px">เข้าสู่ระบบ</button>
+    <button type="button" id="login-btn" style="width:100%;padding:14px;font-size:15px;font-family:inherit;font-weight:600;background:linear-gradient(90deg,#833ab4,#fd1d1d,#fcb045);color:#fff;border:none;border-radius:12px;cursor:pointer;position:relative;z-index:1" onclick="doLogin()">เข้าสู่ระบบ</button>
   </div>
 </div>
 
@@ -598,8 +598,8 @@ body{font-family:'Kanit','Sarabun',sans-serif;background:#fafafa;color:var(--ig-
 
 <script>
 // ===== SUPABASE CONFIG (hardcoded - do not expose to client) =====
-const SB_URL = 'https://nwcyjprjyndyohpnosld.supabase.co';   // ← ใส่ URL จริงที่นี่
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Y3lqcHJqeW5keW9ocG5vc2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NjI5NzAsImV4cCI6MjA5NDIzODk3MH0._eiyPd5MI3PskmVdwNzGt5k5irgKRyJKsS2oyDYCq2g'; // ← ใส่ Key จริงที่นี่
+const SB_URL = 'https://nwcyjprjyndyohpnosld.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Y3lqcHJqeW5keW9ocG5vc2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NjI5NzAsImV4cCI6MjA5NDIzODk3MH0._eiyPd5MI3PskmVdwNzGt5k5irgKRyJKsS2oyDYCq2g';
 let sb = null; // supabase client
 
 // ===== LOGIN SYSTEM =====
@@ -835,15 +835,15 @@ async function loadAll(){
   if(!sb) return;
   // โหลดทุกอย่างใน query เดียว แต่ใช้ cached image ก่อน
   const [eqRes, issRes, recRes] = await Promise.all([
-    sb.from('materials').select('id,code,name,unit,min_quantity,current_stock,image_url').order('code'),
-    sb.from('withdrawal_documents').select('id,doc_number,requester_name,department,note,created_at,withdrawal_items(id,quantity,materials(code,name,unit))').order('created_at', {ascending:false}),
-    sb.from('receive_documents').select('id,doc_number,note,created_at,receive_items(id,quantity,materials(code,name,unit))').order('created_at', {ascending:false}),
+    sb.from('materials').select('id,code,name,unit,min_qty,current_stock,image_url').eq('warehouse_id', currentWarehouse).order('code'),
+    sb.from('issuing_documents').select('id,doc_number,date,requester_name,department,note,issuing_items(id,quantity,materials(code,name,unit))').eq('warehouse_id', currentWarehouse).order('created_at', {ascending:false}),
+    sb.from('receiving_documents').select('id,doc_number,date,note,receiving_items(id,quantity,materials(code,name,unit))').eq('warehouse_id', currentWarehouse).order('created_at', {ascending:false}),
   ]);
   if(eqRes.error) throw eqRes.error;
   equipments = (eqRes.data||[]).map(r=>{
     const cached = getCachedImg(r.id);
     if(r.image_url && r.image_url !== cached) setCachedImg(r.id, r.image_url);
-    return { id:r.id, code:r.code, name:r.name, unit:r.unit, minQty:r.min_quantity||0, qty:r.current_stock||0, img: r.image_url || cached };
+    return { id:r.id, code:r.code, name:r.name, unit:r.unit, minQty:r.min_qty||0, qty:r.current_stock||0, img: r.image_url || cached };
   });
   issueTransactions = (issRes.data||[]).map(mapIssuingDoc);
   receiveTransactions = (recRes.data||[]).map(mapReceivingDoc);
@@ -851,16 +851,14 @@ async function loadAll(){
 }
 
 // ===== DATA MAPPERS =====
-function mapMaterial(r){ return { id:r.id, code:r.code, name:r.name, unit:r.unit, minQty:r.min_quantity||0, qty:r.current_stock||0, img:r.image_url||'' }; }
+function mapMaterial(r){ return { id:r.id, code:r.code, name:r.name, unit:r.unit, minQty:r.min_qty||0, qty:r.current_stock||0, img:r.image_url||'' }; }
 function mapIssuingDoc(r){
-  const dateStr = r.created_at ? r.created_at.split('T')[0] : '';
-  return { id:r.id, docNum:r.doc_number, date:dateStr, requester:r.requester_name, dept:r.department||'', note:r.note||'',
-    items:(r.withdrawal_items||[]).map(i=>{ const eq=equipments.find(e=>e.code===i.materials?.code); return { code:i.materials?.code||'', name:i.materials?.name||'', qty:i.quantity, unit:i.materials?.unit||'', img:eq?.img||getCachedImg(eq?.id||'') }; }) };
+  return { id:r.id, docNum:r.doc_number, date:r.date, requester:r.requester_name, dept:r.department||'', note:r.note||'',
+    items:(r.issuing_items||[]).map(i=>{ const eq=equipments.find(e=>e.code===i.materials?.code); return { code:i.materials?.code||'', name:i.materials?.name||'', qty:i.quantity, unit:i.materials?.unit||'', img:eq?.img||getCachedImg(eq?.id||'') }; }) };
 }
 function mapReceivingDoc(r){
-  const dateStr = r.created_at ? r.created_at.split('T')[0] : '';
-  return { id:r.id, docNum:r.doc_number, date:dateStr, note:r.note||'',
-    items:(r.receive_items||[]).map(i=>{ const eq=equipments.find(e=>e.code===i.materials?.code); return { code:i.materials?.code||'', name:i.materials?.name||'', qty:i.quantity, unit:i.materials?.unit||'', img:eq?.img||getCachedImg(eq?.id||'') }; }) };
+  return { id:r.id, docNum:r.doc_number, date:r.date, note:r.note||'',
+    items:(r.receiving_items||[]).map(i=>{ const eq=equipments.find(e=>e.code===i.materials?.code); return { code:i.materials?.code||'', name:i.materials?.name||'', qty:i.quantity, unit:i.materials?.unit||'', img:eq?.img||getCachedImg(eq?.id||'') }; }) };
 }
 
 // ===== RENDER =====
@@ -985,12 +983,12 @@ async function saveEquipment(){
   btn.innerHTML = '<span class="spinner"></span> กำลังบันทึก...'; btn.disabled = true;
 
   if(!usingDemo){
-    const payload = { code, name, unit, min_quantity: minQty, image_url: img||null };
+    const payload = { code, name, unit, min_qty: minQty, image_url: img||null };
     let error;
     if(editId){
       ({ error } = await sb.from('materials').update(payload).eq('id', editId));
     } else {
-      ({ error } = await sb.from('materials').insert({ ...payload, current_stock: 0 }));
+      ({ error } = await sb.from('materials').insert({ ...payload, current_stock: 0, warehouse_id: currentWarehouse }));
     }
     if(error){ toast(thaiError(error),'error'); btn.innerHTML='บันทึก'; btn.disabled=false; return; }
     await reloadEquip();
@@ -1059,7 +1057,7 @@ function previewEquipImgUrl(url){
 
 async function reloadEquip(){
   if(!usingDemo){
-    const { data } = await sb.from('materials').select('*').order('code');
+    const { data } = await sb.from('materials').select('*').eq('warehouse_id', currentWarehouse).order('code');
     equipments = (data||[]).map(mapMaterial);
   }
   renderEquip(); renderStockReport(); checkLowStock();
@@ -1122,7 +1120,7 @@ async function deleteIssue(id){
       const eq = equipments.find(e=>e.code===it.code);
       if(eq) await sb.from('materials').update({current_stock: eq.qty + it.qty}).eq('id', eq.id);
     }
-    const { error } = await sb.from('withdrawal_documents').delete().eq('id', id);
+    const { error } = await sb.from('issuing_documents').delete().eq('id', id);
     if(error){ toast('ลบไม่สำเร็จ','error'); return; }
     await loadAll();
   } else {
@@ -1193,22 +1191,22 @@ async function submitIssue(){
           if(eq) await sb.from('materials').update({current_stock: eq.qty + it.qty}).eq('id', eq.id);
         }
         // อัปเดต doc
-        await sb.from('withdrawal_documents').update({doc_number:docNum,requester_name:requester,department:dept,note}).eq('id',editId);
-        await sb.from('withdrawal_items').delete().eq('doc_id', editId);
+        await sb.from('issuing_documents').update({doc_number:docNum,date,requester_name:requester,department:dept,note}).eq('id',editId);
+        await sb.from('issuing_items').delete().eq('doc_id', editId);
         // ตัดสต๊อกใหม่และ insert items
         for(const it of issueTxItems){
           const eq = equipments.find(e=>e.code===it.code);
           const matId = eq?.id;
-          await sb.from('withdrawal_items').insert({doc_id:editId, material_id:matId, quantity:it.qty});
+          await sb.from('issuing_items').insert({doc_id:editId, material_id:matId, quantity:it.qty});
           if(eq) await sb.from('materials').update({current_stock: Math.max(0, (eq.qty||0) - it.qty)}).eq('id', eq.id);
         }
       } else {
-        const { data: doc, error: docErr } = await sb.from('withdrawal_documents').insert({doc_number:docNum,requester_name:requester,department:dept,note}).select().single();
+        const { data: doc, error: docErr } = await sb.from('issuing_documents').insert({doc_number:docNum,date,requester_name:requester,department:dept,note,warehouse_id:currentWarehouse}).select().single();
         if(docErr) throw docErr;
         for(const it of issueTxItems){
           const eq = equipments.find(e=>e.code===it.code);
           const matId = eq?.id;
-          await sb.from('withdrawal_items').insert({doc_id:doc.id, material_id:matId, quantity:it.qty});
+          await sb.from('issuing_items').insert({doc_id:doc.id, material_id:matId, quantity:it.qty});
           if(eq) await sb.from('materials').update({current_stock: Math.max(0, (eq.qty||0) - it.qty)}).eq('id', eq.id);
         }
       }
@@ -1298,7 +1296,7 @@ async function deleteReceive(id){
       const eq = equipments.find(e=>e.code===it.code);
       if(eq) await sb.from('materials').update({current_stock: Math.max(0, eq.qty - it.qty)}).eq('id', eq.id);
     }
-    const { error } = await sb.from('receive_documents').delete().eq('id', id);
+    const { error } = await sb.from('receiving_documents').delete().eq('id', id);
     if(error){ toast('ลบไม่สำเร็จ','error'); return; }
     await loadAll();
   } else {
@@ -1344,28 +1342,45 @@ async function submitReceive(){
   if(!usingDemo){
     try {
       if(editId){
+        // โหลด qty ปัจจุบันจาก DB ก่อนเพื่อความแม่นยำ
+        const {data: freshEq} = await sb.from('materials').select('id,code,current_stock').eq('warehouse_id',currentWarehouse);
+        const getQty = (code) => freshEq?.find(e=>e.code===code)?.current_stock || 0;
+        const getId  = (code) => freshEq?.find(e=>e.code===code)?.id;
+
+        // หักของเก่าออก
         const prev = receiveTransactions.find(t=>t.id===editId);
         if(prev) for(const it of (prev.items||[])){
-          const eq = equipments.find(e=>e.code===it.code);
-          if(eq) await sb.from('materials').update({current_stock: Math.max(0, eq.qty - it.qty)}).eq('id', eq.id);
+          const newQty = Math.max(0, getQty(it.code) - it.qty);
+          const id = getId(it.code);
+          if(id) await sb.from('materials').update({current_stock: newQty}).eq('id', id);
+          // อัปเดต freshEq ด้วยเพื่อ chain ถูกต้อง
+          const fe = freshEq?.find(e=>e.code===it.code); if(fe) fe.current_stock = newQty;
         }
-        await sb.from('receive_documents').update({doc_number:docNum,note}).eq('id',editId);
-        await sb.from('receive_items').delete().eq('doc_id', editId);
+        await sb.from('receiving_documents').update({doc_number:docNum,date,note}).eq('id',editId);
+        await sb.from('receiving_items').delete().eq('doc_id', editId);
         for(const it of receiveTxItems){
           const eq = equipments.find(e=>e.code===it.code);
-          await sb.from('receive_items').insert({doc_id:editId, material_id:eq?.id, quantity:it.qty});
-          if(eq) await sb.from('materials').update({current_stock: (eq.qty||0) + it.qty}).eq('id', eq.id);
+          await sb.from('receiving_items').insert({doc_id:editId, material_id:eq?.id, quantity:it.qty});
+          const newQty = getQty(it.code) + it.qty;
+          if(eq?.id) await sb.from('materials').update({current_stock: newQty}).eq('id', eq.id);
+          const fe = freshEq?.find(e=>e.code===it.code); if(fe) fe.current_stock = newQty;
         }
       } else {
-        const { data: doc, error: docErr } = await sb.from('receive_documents').insert({doc_number:docNum,note}).select().single();
+        const { data: doc, error: docErr } = await sb.from('receiving_documents').insert({doc_number:docNum,date,note,warehouse_id:currentWarehouse}).select().single();
         if(docErr) throw docErr;
         for(const it of receiveTxItems){
           const eq = equipments.find(e=>e.code===it.code);
-          await sb.from('receive_items').insert({doc_id:doc.id, material_id:eq?.id, quantity:it.qty});
+          await sb.from('receiving_items').insert({doc_id:doc.id, material_id:eq?.id, quantity:it.qty});
           if(eq) await sb.from('materials').update({current_stock: (eq.qty||0) + it.qty}).eq('id', eq.id);
         }
       }
-      // อัปเดต local state แทน loadAll() เพื่อความเร็ว
+      // อัปเดต local state อย่างถูกต้อง
+      if(editId){
+        // คืน qty ของเก่าก่อน
+        const prev = receiveTransactions.find(t=>t.id===editId);
+        if(prev)(prev.items||[]).forEach(it=>{ const eq=equipments.find(e=>e.code===it.code); if(eq) eq.qty=Math.max(0,eq.qty-it.qty); });
+      }
+      // บวก qty ใหม่
       receiveTxItems.forEach(it=>{
         const eq = equipments.find(e=>e.code===it.code);
         if(eq) eq.qty = (eq.qty||0) + it.qty;
