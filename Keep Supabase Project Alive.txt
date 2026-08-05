@@ -2,15 +2,18 @@ name: Keep Supabase Project Alive
 
 on:
   schedule:
-    - cron: '0 3 */3 * *'   # รันทุก 3 วัน เวลา 03:00 UTC
-  workflow_dispatch: {}      # กดรันเองได้จาก tab Actions
+    - cron: '0 9 * * 1,4'
+  workflow_dispatch:
 
 jobs:
-  ping-project:
+  ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase project
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl -s -o /dev/null -w "Status: %{http_code}\n" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+            "${SUPABASE_URL}/auth/v1/health" \
+            -H "apikey: ${SUPABASE_ANON_KEY}"
